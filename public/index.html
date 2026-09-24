@@ -33,6 +33,13 @@
       <textarea id="bodyEn" rows="6" placeholder="填写后进入中英对照双栏模式：标题横跨整签，中文原文与译文左右并列。"></textarea>
     </label>
 
+    <label class="field">
+      <span class="field-label">中文专名保护表（每行一个词，最多 20 个，每个 1～12 字）</span>
+      <textarea id="protectWords" rows="4" placeholder="每行输入一个不可断行的中文专名，如：&#10;仰韶文化&#10;渑池县&#10;空行忽略；重复自动去重；词中不得含空格或制表符。"></textarea>
+      <span class="field-hint" id="protectCount">0 / 20</span>
+      <span class="field-error" id="protectError" hidden></span>
+    </label>
+
     <div class="field-row">
       <label class="field">
         <span class="field-label">标签宽 (mm)</span>
@@ -84,6 +91,11 @@
           同代价时固定优先保留原文较早字符；对照区中绿色为新增、红色删除线为已删。</li>
         <li>原稿与修订稿沿用当前尺寸与英文译文<strong>分别排版</strong>，对照表展示两版字号、中文行数与能否容纳的变化；
           选定成品版本后，预览与打印只显示该版，差异标记不进入打印；所选版排不下时禁用打印并说明超宽或超高。</li>
+        <li><strong>中文专名保护</strong>：保护表每行一个词（最多 20 个、每个 1～12 个 Unicode 字符；空行忽略、重复去重，
+          含空格等换行以外空白的行会报错）。排版标题与中文正文时逐段从左到右匹配，同位置取最长词、同长按录入顺序，
+          已匹配字符不再参与后续匹配；命中的词<strong>内部不可断行</strong>，边界仍遵守标点避头尾规则。
+          保护词在最小字号下仍超行宽时，显示该词与所需宽度并禁用打印，不拆词、不截断；原稿与修订稿使用同一张表，
+          英文译文不保护。</li>
         <li>打印输出与预览<strong>同换行、同物理尺寸</strong>（毫米）。</li>
       </ul>
     </details>

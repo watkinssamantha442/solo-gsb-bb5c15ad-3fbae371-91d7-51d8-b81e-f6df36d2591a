@@ -124,6 +124,15 @@ button:disabled { background: #aaa5; cursor: not-allowed; }
 }
 .field-hint.over { color: var(--danger); font-weight: 600; }
 
+.field-error {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--danger);
+  margin-top: 4px;
+  white-space: pre-line;
+}
+
 .compare {
   border-top: 1px solid var(--line);
   padding-top: 12px;
@@ -297,6 +306,7 @@ button:disabled { background: #aaa5; cursor: not-allowed; }
   border-radius: 4px;
   padding: 10px;
   background: rgba(179, 38, 30, 0.04);
+  white-space: pre-line;
 }
 
 /* ========== 打印：#label 即页面，物理尺寸 1:1 ========== */
