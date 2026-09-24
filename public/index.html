@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>博物馆展签排版工具</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="panel">
+    <h1 class="brand">展签排版 <span>Label Typesetter</span></h1>
+
+    <label class="field">
+      <span class="field-label">标题</span>
+      <input id="title" type="text" value="白陶刻纹尊" placeholder="如：白陶刻纹尊">
+    </label>
+
+    <label class="field">
+      <span class="field-label">说明文字（中文可夹 English）</span>
+      <textarea id="body" rows="8" placeholder="输入展签正文，回车可分段。英文单词不会被拆开。"></textarea>
+    </label>
+
+    <label class="field">
+      <span class="field-label">修订稿（可选，不超过 300 字；填写后与原稿逐字对照）</span>
+      <textarea id="bodyRev" rows="5" placeholder="输入修订后的中文正文。填写后自动求最短增删对照，原稿与修订稿分别排版，可任选一版作为成品。"></textarea>
+      <span class="field-hint" id="revCount">0 / 300</span>
+    </label>
+
+    <label class="field">
+      <span class="field-label">英文译文 English translation（留空则单栏排版）</span>
+      <textarea id="bodyEn" rows="6" placeholder="填写后进入中英对照双栏模式：标题横跨整签，中文原文与译文左右并列。"></textarea>
+    </label>
+
+    <div class="field-row">
+      <label class="field">
+        <span class="field-label">标签宽 (mm)</span>
+        <input id="widthMm" type="number" min="30" max="999" step="1" value="120">
+      </label>
+      <label class="field">
+        <span class="field-label">标签高 (mm)</span>
+        <input id="heightMm" type="number" min="20" max="999" step="1" value="80">
+      </label>
+    </div>
+
+    <section id="compare" class="compare" hidden>
+      <h2 class="compare-title">修订对照 <span class="compare-sub">差异标记仅用于对照，不进入打印</span></h2>
+      <div id="diffView" class="diff-view"></div>
+      <div id="diffStats" class="diff-stats"></div>
+      <table class="fit-table">
+        <thead>
+          <tr><th>版本</th><th>正文字号</th><th>中文行数</th><th>能否容纳</th></tr>
+        </thead>
+        <tbody id="fitBody"></tbody>
+      </table>
+      <div id="fitDelta" class="fit-delta"></div>
+      <div class="version-pick">
+        <span>成品版本：</span>
+        <label><input type="radio" name="finalVer" id="finalOrig" value="orig" checked> 原稿</label>
+        <label><input type="radio" name="finalVer" id="finalRev" value="rev"> 修订稿</label>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button id="printBtn" type="button">打印 / 导出 PDF</button>
+    </div>
+
+    <div id="status" class="status" aria-live="polite"></div>
+
+    <details class="help">
+      <summary>排版规则说明</summary>
+      <ul>
+        <li>按字体<strong>实际字宽</strong>逐字/逐词测量后规划断行。</li>
+        <li>英文单词整体移动，不会从中间断开。</li>
+        <li>闭标点（。，、！？：；）”’】》…—等）不会出现在行首；开标点（“‘【《〈等）不会留在行尾。</li>
+        <li>在所有放得下的排法中，最小化<strong>非末行空白宽度的平方和</strong>，使各行尽量均匀填满。</li>
+        <li>正文字号在 <strong>12–24px</strong> 中取能同时容纳宽与高的<strong>最大整数</strong>；任何字号都放不下时报错，不做截断或缩放。</li>
+        <li>标题字号为正文的 1.4 倍并加粗，宽度不足时按相同规则折行。</li>
+        <li><strong>中英对照双栏</strong>：填写英文译文后，标题横跨整签，中文原文与译文在正文区左右并列（栏间距 6mm），
+          两栏按各自实际栏宽独立断行，取<strong>两栏都能容纳的最大共享字号</strong>，高度按较高一栏与标题共同核算；
+          译文留空则保持现有单栏。</li>
+        <li><strong>修订对照</strong>：填写修订稿（≤300 字）后，按 Unicode 字符求最短增删对齐，
+          同代价时固定优先保留原文较早字符；对照区中绿色为新增、红色删除线为已删。</li>
+        <li>原稿与修订稿沿用当前尺寸与英文译文<strong>分别排版</strong>，对照表展示两版字号、中文行数与能否容纳的变化；
+          选定成品版本后，预览与打印只显示该版，差异标记不进入打印；所选版排不下时禁用打印并说明超宽或超高。</li>
+        <li>打印输出与预览<strong>同换行、同物理尺寸</strong>（毫米）。</li>
+      </ul>
+    </details>
+  </aside>
+
+  <main class="stage-wrap">
+    <div id="stage" class="stage">
+      <div id="label" class="label">
+        <div id="labelTitle" class="label-title"></div>
+        <div id="labelContent" class="label-content">
+          <div id="labelBody" class="label-col"></div>
+          <div id="labelBodyEn" class="label-col label-col-en"></div>
+        </div>
+        <div id="labelError" class="label-error" hidden></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/js/diff.js"></script>
+<script src="/js/layout.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

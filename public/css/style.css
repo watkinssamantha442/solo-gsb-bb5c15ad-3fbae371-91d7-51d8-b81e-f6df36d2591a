@@ -1,0 +1,325 @@
+/* ========== 全局 ========== */
+:root {
+  --ink: #1f2328;
+  --muted: #6b7280;
+  --line: #d9dde3;
+  --panel-bg: #f7f8fa;
+  --accent: #8a6d3b;
+  --danger: #b3261e;
+  --label-font: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC",
+                "SimSun", "Times New Roman", serif;
+  --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+             "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: var(--ui-font);
+  color: var(--ink);
+  background: #eceef1;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  height: 100vh;
+}
+
+/* ========== 左侧控制面板 ========== */
+.panel {
+  background: var(--panel-bg);
+  border-right: 1px solid var(--line);
+  padding: 20px 18px;
+  overflow-y: auto;
+}
+
+.brand {
+  margin: 0 0 18px;
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+.brand span {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+.field { display: block; margin-bottom: 14px; }
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+input[type="text"], input[type="number"], textarea {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: var(--ui-font);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  resize: vertical;
+}
+input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(138, 109, 59, 0.15);
+}
+
+.actions { margin: 4px 0 12px; }
+button {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: #fff;
+  background: var(--ink);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button:hover { background: #000; }
+button:disabled { background: #aaa5; cursor: not-allowed; }
+
+.status {
+  min-height: 20px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-bottom: 10px;
+  white-space: pre-line;
+}
+.status.ok { color: #2f6f44; }
+.status.err { color: var(--danger); font-weight: 600; }
+
+.help {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.help summary { cursor: pointer; color: var(--ink); margin-bottom: 6px; }
+.help ul { padding-left: 18px; margin: 0; }
+
+/* ========== 修订稿与修订对照 ========== */
+.field-hint {
+  display: block;
+  text-align: right;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.field-hint.over { color: var(--danger); font-weight: 600; }
+
+.compare {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-bottom: 14px;
+}
+.compare-title {
+  font-size: 13px;
+  margin: 0 0 8px;
+  letter-spacing: 1px;
+}
+.compare-sub {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+/* 差异视图：新增绿色、删除红色删除线；仅屏幕对照用，打印时随面板隐藏 */
+.diff-view {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.9;
+  max-height: 200px;
+  overflow: auto;
+  word-break: break-all;
+}
+.diff-view del {
+  color: var(--danger);
+  background: rgba(179, 38, 30, 0.10);
+  text-decoration: line-through;
+  border-radius: 2px;
+}
+.diff-view ins {
+  color: #1e7b34;
+  background: rgba(30, 123, 52, 0.12);
+  text-decoration: none;
+  border-bottom: 1px solid #1e7b34;
+  border-radius: 2px;
+}
+.diff-view .nl {
+  font-style: normal;
+  font-size: 10px;
+  padding: 0 1px;
+}
+
+.diff-stats {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 6px 0 8px;
+}
+
+/* 两版排版对比表 */
+.fit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.fit-table th,
+.fit-table td {
+  border: 1px solid var(--line);
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+.fit-table th {
+  background: #f0f1f4;
+  font-weight: 600;
+}
+.fit-table td.good { color: #2f6f44; }
+.fit-table td.bad { color: var(--danger); }
+
+.fit-delta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.version-pick {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+}
+.version-pick > span { color: var(--muted); font-size: 12px; }
+.version-pick label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.version-pick input { width: auto; margin: 0; }
+
+/* ========== 右侧预览舞台 ========== */
+.stage-wrap { overflow: auto; }
+.stage {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+/* 展签本体：所有尺寸均为物理毫米，#label 本身即打印页 */
+.label {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--label-w);
+  height: var(--label-h);
+  padding: 8mm;
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0,0,0,0.06);
+  transform-origin: center center;
+  overflow: hidden;
+  font-family: var(--label-font);
+  color: #111;
+}
+
+.label-title {
+  font-size: var(--title-size);
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: var(--title-gap);
+  /* 标点折行规则同样生效；white-space: pre 保证空格与预断行原样呈现 */
+}
+
+/* 正文区：单栏即一列；双栏（.dual）时中英左右并列，栏间距 6mm */
+.label-content,
+.label-col {
+  font-size: var(--body-size);
+  line-height: 1.6;
+}
+
+.label-content.dual {
+  display: flex;
+  align-items: flex-start;
+  gap: 6mm;
+}
+
+.label-content.dual .label-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.label-title .t-line,
+.label-col .t-line {
+  white-space: pre;
+  display: block;
+}
+
+.label-col .t-paragraph + .t-paragraph {
+  margin-top: var(--para-gap);
+}
+
+.label-error {
+  position: absolute;
+  inset: 8mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: var(--ui-font);
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--danger);
+  border: 2px dashed var(--danger);
+  border-radius: 4px;
+  padding: 10px;
+  background: rgba(179, 38, 30, 0.04);
+}
+
+/* ========== 打印：#label 即页面，物理尺寸 1:1 ========== */
+@page { margin: 0; }
+
+@media print {
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+  /* 隐藏一切非展签元素 */
+  .panel { display: none !important; }
+  .app-shell { display: block; height: auto; }
+  .stage-wrap { overflow: visible; }
+  .stage {
+    min-height: 0;
+    padding: 0;
+    display: block;
+  }
+  .label {
+    box-shadow: none;
+    transform: none !important;
+    margin: 0;
+  }
+}

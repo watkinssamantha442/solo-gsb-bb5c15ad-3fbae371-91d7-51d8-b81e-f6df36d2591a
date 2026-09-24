@@ -1,0 +1,15 @@
+{
+  "name": "museum-label-typesetter",
+  "version": "1.0.0",
+  "description": "单张博物馆展签排版工具：按实际字宽动态规划断行，实时预览与等尺寸打印",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
