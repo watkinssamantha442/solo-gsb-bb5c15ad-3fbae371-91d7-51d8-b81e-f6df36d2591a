@@ -12,6 +12,8 @@
   var TITLE_GAP_PX_FACTOR = 0.5;  // 标题与正文间距 = 0.5 个正文字号
   var PARA_GAP_PX_FACTOR = 0.6;   // 段间距 = 0.6 个正文字号
   var REV_LIMIT = 300;            // 修订稿字数上限（按 Unicode 字符计）
+  var PROTECT_MAX = 20;           // 专名保护词数量上限
+  var PROTECT_MAX_LEN = 12;       // 单个专名保护词的 Unicode 字符上限
 
   var el = {
     title: document.getElementById('title'),
@@ -19,6 +21,8 @@
     bodyEn: document.getElementById('bodyEn'),
     bodyRev: document.getElementById('bodyRev'),
     revCount: document.getElementById('revCount'),
+    protect: document.getElementById('protect'),
+    protectHint: document.getElementById('protectHint'),
     widthMm: document.getElementById('widthMm'),
     heightMm: document.getElementById('heightMm'),
     printBtn: document.getElementById('printBtn'),
@@ -74,6 +78,53 @@
     return plan.totalLines * bodyPx * BODY_LINE_HEIGHT + paraGaps;
   }
 
+  // ---------- 中文专名保护表解析 ----------
+  // 每行一个词：空行忽略；重复词去重；含换行以外空白（含仅空白的行）报错；
+  // 每个词 1～12 个 Unicode 字符；去重后最多 20 个。
+  // 返回 { words: string[] } 或 { error: string }。
+  function parseProtectedWords(raw) {
+    var lines = String(raw == null ? '' : raw).split(/\r\n?|\n/);
+    var words = [];
+    var seen = Object.create(null);
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (line === '') continue; // 空行忽略
+      var cps = Array.from(line);
+      var hasSpace = false;
+      for (var k = 0; k < cps.length; k++) {
+        if (isWhitespaceCp(cps[k].codePointAt(0))) { hasSpace = true; break; }
+      }
+      if (hasSpace) {
+        return { error: '专名保护表第 ' + (i + 1) +
+          ' 行含换行以外的空白字符（空格、制表符等），请删除或改为每行一个词。' };
+      }
+      if (cps.length < 1 || cps.length > PROTECT_MAX_LEN) {
+        return { error: '专名保护表第 ' + (i + 1) + ' 行「' + line +
+          '」长度为 ' + cps.length + ' 个字符，需为 1～' + PROTECT_MAX_LEN +
+          ' 个 Unicode 字符。' };
+      }
+      if (!seen[line]) {
+        seen[line] = true;
+        words.push(line);
+      }
+    }
+    if (words.length > PROTECT_MAX) {
+      return { error: '专名保护表去重后有 ' + words.length +
+        ' 个词，超过上限 ' + PROTECT_MAX + ' 个，请删减。' };
+    }
+    return { words: words };
+  }
+
+  // 换行（\n/\r，已按行切分）以外的 Unicode 空白
+  function isWhitespaceCp(ch) {
+    if (ch === 0x20 || ch === 0x09 || ch === 0x0b || ch === 0x0c ||
+        ch === 0xa0 || ch === 0x1680 || ch === 0x2028 || ch === 0x2029 ||
+        ch === 0x202f || ch === 0x205f || ch === 0x3000 || ch === 0xfeff) {
+      return true;
+    }
+    return ch >= 0x2000 && ch <= 0x200a;
+  }
+
   // ---------- 一次排版尝试 ----------
   // 单栏（无英文译文）：正文占满内容宽。
   // 双栏（填写译文）：标题横跨整签，中文/英文按扣除 6mm 栏间距后的实际栏宽
@@ -110,35 +161,47 @@
       };
     }
 
-    // 标题横跨整签（两种模式均按内容全宽规划，允许折行）
+    // 标题横跨整签（两种模式均按内容全宽规划，允许折行）；标题与中文正文应用保护表
     var titlePlan = null;
     var titleWidthFail = false;
+    var pw = input.protectedWords || [];
     if (input.titleTrim) {
-      titlePlan = window.LabelLayout.planText(input.titleTrim, contentW, titleMeasure);
-      if (!titlePlan) titleWidthFail = true;
+      titlePlan = window.LabelLayout.planText(input.titleTrim, contentW, titleMeasure, pw);
+      if (titlePlan.error) titleWidthFail = true;
     }
 
     var zhPlan = null, enPlan = null;
     var widthFailures = [];
+    function collectFailures(key, plan, widthMm) {
+      if (plan && plan.error === 'width') {
+        widthFailures.push({ key: key, widthMm: widthMm, overflows: plan.overflows || [] });
+      }
+    }
     if (titleWidthFail) {
-      widthFailures.push({ key: 'title', widthMm: contentW / PX_PER_MM });
+      collectFailures('title', titlePlan, contentW / PX_PER_MM);
     }
     if (hasZh) {
-      zhPlan = window.LabelLayout.planText(input.bodyTrim, colW, bodyMeasure);
-      if (!zhPlan) widthFailures.push({ key: 'zh', widthMm: colW / PX_PER_MM });
+      zhPlan = window.LabelLayout.planText(input.bodyTrim, colW, bodyMeasure, pw);
+      collectFailures('zh', zhPlan, colW / PX_PER_MM);
     }
     if (dual && hasEn) {
+      // 英文译文不应用中文专名保护
       enPlan = window.LabelLayout.planText(input.enTrim, colW, bodyMeasure);
-      if (!enPlan) widthFailures.push({ key: 'en', widthMm: colW / PX_PER_MM });
+      collectFailures('en', enPlan, colW / PX_PER_MM);
     }
 
     if (widthFailures.length) {
       return {
         ok: false, reason: 'width', bodyPx: bodyPx, widthFailures: widthFailures,
-        zhLines: zhPlan ? zhPlan.totalLines : null,
-        enLines: enPlan ? enPlan.totalLines : null
+        zhLines: zhPlan && !zhPlan.error ? zhPlan.totalLines : null,
+        enLines: enPlan && !enPlan.error ? enPlan.totalLines : null
       };
     }
+
+    // error 已被收集；此处仅为类型检查兜底
+    titlePlan = titlePlan && !titlePlan.error ? titlePlan : null;
+    zhPlan = zhPlan && !zhPlan.error ? zhPlan : null;
+    enPlan = enPlan && !enPlan.error ? enPlan : null;
 
     if (!titlePlan && !zhPlan && !enPlan) {
       return {
@@ -200,20 +263,43 @@
   // ---------- 错误文案 ----------
   var COL_NAMES = { title: '标题', zh: '中文原文栏', en: '英文译文栏' };
 
+  function pxToMm(px) { return px / PX_PER_MM; }
+
   function widthFailureMessage(result, dual) {
     var parts = result.widthFailures.map(function (f) {
-      if (f.key === 'title') {
-        return '标题存在即使 ' + result.bodyPx + 'px（最小字号）也无法放入整签宽度的连续内容';
+      var colLabel = f.key === 'title' ? '标题' : (dual ? COL_NAMES[f.key] : '正文');
+      var widthText = Math.max(0, Math.round(f.widthMm)) + 'mm';
+      // 标题按整签宽度；双栏按栏宽；单栏正文按行宽
+      var spanName = f.key === 'title' ? '整签宽度' : (dual ? '栏宽' : '行宽');
+      var protects = (f.overflows || []).filter(function (o) { return o.protect; });
+      var others = (f.overflows || []).filter(function (o) { return !o.protect; });
+      var items = [];
+
+      if (protects.length) {
+        items.push('保护词' + protects.map(function (o) {
+          return '「' + o.text + '」需要约 ' +
+            Math.round(pxToMm(o.width) * 10) / 10 + 'mm';
+        }).join('、') + '，即使 ' + result.bodyPx +
+          'px（最小字号）仍超出' + spanName + '（约 ' + widthText +
+          '），不可拆词或截断');
       }
-      var colLabel = dual ? COL_NAMES[f.key] : '正文';
-      return colLabel + '存在即使 ' + result.bodyPx +
-        'px（最小字号）也无法放入' + (dual ? '栏' : '行') + '宽（约 ' +
-        Math.max(0, Math.round(f.widthMm)) +
-        'mm）的连续内容（如过长的英文单词）';
+      if (others.length) {
+        items.push('连续内容 ' + others.slice(0, 3).map(function (o) {
+          return '「' + o.text + '」';
+        }).join('、') + (others.length > 3 ? ' 等' : '') +
+          '即使 ' + result.bodyPx + 'px（最小字号）也无法放入' +
+          spanName + '（约 ' + widthText + '）');
+      }
+      if (!items.length) {
+        items.push('存在即使 ' + result.bodyPx + 'px（最小字号）也无法放入' +
+          spanName + '（约 ' + widthText + '）的连续内容');
+      }
+      return colLabel + items.join('；');
     });
     var head = dual ? '排不下（双栏）：' : '排不下：';
     return head + parts.join('；') + '。请加宽标签' +
-      (dual ? '（加宽后两栏栏宽同步增加）' : '') + '或修改文案——不会截断显示。';
+      (dual ? '（加宽后两栏栏宽同步增加）' : '') +
+      '、缩短保护词或修改文案——不会拆词、截断显示。';
   }
 
   function heightFailureMessage(result, dual) {
@@ -376,7 +462,19 @@
   // 单版能否容纳的对照表文案
   function fitNote(r) {
     if (r.ok) return { text: '✓ 可容纳', bad: false };
-    if (r.reason === 'width') return { text: '✗ 超宽：12px 仍放不进行宽', bad: true };
+    if (r.reason === 'width') {
+      var protects = (r.widthFailures || []).reduce(function (acc, f) {
+        return acc.concat((f.overflows || []).filter(function (o) { return o.protect; }));
+      }, []);
+      if (protects.length) {
+        return {
+          text: '✗ 超宽：保护词「' + protects[0].text + '」12px 仍需约 ' +
+            Math.round(pxToMm(protects[0].width) * 10) / 10 + 'mm',
+          bad: true
+        };
+      }
+      return { text: '✗ 超宽：12px 仍放不进行宽', bad: true };
+    }
     if (r.reason === 'height') {
       return {
         text: '✗ 超高：12px 需约 ' + Math.round(r.totalH / PX_PER_MM) +
@@ -442,6 +540,25 @@
     input.enTrim = input.bodyEn.trim();
     input.dual = input.enTrim.length > 0;
 
+    // 中文专名保护表：原稿与修订稿应用同一张表；非法时禁用打印、不进行排版
+    setDualMode(input.dual);
+    var parsedProtect = parseProtectedWords(el.protect.value);
+    el.protectHint.classList.toggle('err', !!parsedProtect.error);
+    if (parsedProtect.error) {
+      el.protectHint.textContent = parsedProtect.error;
+      setStatus(parsedProtect.error, 'err');
+      showError('专名保护表有误\n' + parsedProtect.error);
+      el.printBtn.disabled = true;
+      fitScale();
+      return;
+    }
+    input.protectedWords = parsedProtect.words;
+    var dupCount = countNonEmptyLines(el.protect.value) - input.protectedWords.length;
+    el.protectHint.textContent = input.protectedWords.length
+      ? '已启用 ' + input.protectedWords.length + ' 个保护词' +
+        (dupCount > 0 ? '（已自动忽略 ' + dupCount + ' 个重复词）' : '')
+      : '未设置保护词';
+
     // 修订稿非空白即进入对照模式；新填写修订稿时默认以修订稿为成品
     var revTrim = el.bodyRev.value.trim();
     var revActive = revTrim.length > 0;
@@ -451,8 +568,6 @@
     el.finalOrig.checked = selectedVersion === 'orig';
     el.finalRev.checked = selectedVersion === 'rev';
     el.compare.hidden = !revActive;
-
-    setDualMode(input.dual);
 
     // 差异对照与尺寸无关，先行渲染（尺寸非法期间对照仍保持更新）
     if (revActive) renderDiff(input.bodyTrim, revTrim);
@@ -472,13 +587,14 @@
       return;
     }
 
-    // 对照模式：原稿与修订稿沿用当前尺寸与英文译文，分别运行现有排版
+    // 对照模式：原稿与修订稿沿用当前尺寸与英文译文，分别运行现有排版，共用同一保护表
     var revInput = {
       title: input.title,
       body: el.bodyRev.value,
       bodyEn: input.bodyEn,
       widthMm: input.widthMm,
-      heightMm: input.heightMm
+      heightMm: input.heightMm,
+      protectedWords: input.protectedWords
     };
     revInput.titleTrim = input.titleTrim;
     revInput.bodyTrim = revTrim;
@@ -496,6 +612,13 @@
       if (!resOrig.ok) showFailure(input, resOrig, '原稿');
       else showSuccess(input, resOrig, '原稿');
     }
+  }
+
+  // 保护表中非空行数（用于提示去重数量）
+  function countNonEmptyLines(raw) {
+    return String(raw == null ? '' : raw)
+      .split(/\r\n?|\n/)
+      .filter(function (ln) { return ln !== ''; }).length;
   }
 
   function showError(message) {
@@ -555,6 +678,7 @@
     el.title.addEventListener(evt, schedule);
     el.body.addEventListener(evt, schedule);
     el.bodyEn.addEventListener(evt, schedule);
+    el.protect.addEventListener(evt, schedule);
     el.widthMm.addEventListener(evt, schedule);
     el.heightMm.addEventListener(evt, schedule);
   });

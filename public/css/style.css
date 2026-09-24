@@ -123,6 +123,7 @@ button:disabled { background: #aaa5; cursor: not-allowed; }
   margin-top: 4px;
 }
 .field-hint.over { color: var(--danger); font-weight: 600; }
+.field-hint.err { color: var(--danger); font-weight: 600; }
 
 .compare {
   border-top: 1px solid var(--line);
